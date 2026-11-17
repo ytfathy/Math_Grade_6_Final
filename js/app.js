@@ -13,20 +13,27 @@ const UNITS = [
   { id: 'nl', name: 'Integers & Number Lines', icon: '📏', color: '#3d6bff' },
   { id: 'ab', name: 'Opposites & Absolute Value', icon: '🪞', color: '#a855f7' },
   { id: 'co', name: 'Compare & Order Numbers', icon: '⚖️', color: '#e8558f' },
+  // ---- Quarter 2 ----
+  { id: 'm4', qr: 2, name: 'Module 4: Decimals & Whole Numbers', icon: '🧮', color: '#0f9d8a' },
 ];
 const unitOf = id => UNITS.find(u => u.id === id);
+const qrOf = u => u.qr || 1;                                   // which quarter a unit belongs to
+const unitsIn = n => UNITS.filter(u => qrOf(u) === n);
+const unitNo = u => unitsIn(qrOf(u)).indexOf(u) + 1;            // unit number inside its quarter
 
 /* ================= LOAD + VALIDATE QUESTION DATA ================= */
-const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx' };
+const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx', 'Module 4 Worksheet': 'Module 4 Worksheet', 'Multiply Worksheet': 'Multiply Worksheet' };
 const raw = [];
 (window.Q_FR6 || []).forEach(q => { q.id = 'R' + q.n; q.src = 'Final Revision 6'; q.of = 50; raw.push(q); });
+(window.Q_M4 || []).forEach(q => { q.id = 'M4-' + q.n; q.src = 'Module 4 Worksheet'; q.of = 100; raw.push(q); });
+(window.Q_M4_MUL || []).forEach(q => { q.id = 'MUL-' + q.n; q.src = 'Multiply Worksheet'; q.of = 10; raw.push(q); });
 try { raw.push(...window.buildQuestions(window.DSL)); } catch (e) { console.error('Question generator failed', e); }
 const VALID_T = ['input', 'choice', 'sign', 'order', 'nlpick', 'graph', 'nlmiss'];
 function validate(q) {
   const errs = [];
   if (!q.id) errs.push('missing id');
   if (!unitOf(q.l)) errs.push('unknown unit ' + q.l);
-  if (!q.sk || !/^[A-Z]\.\d+ /.test(q.sk)) errs.push('missing skill code');
+  if (!q.sk || !/^[A-Z][A-Z0-9]*\.\d+ /.test(q.sk)) errs.push('missing skill code');
   if (!VALID_T.includes(q.t)) errs.push('bad type ' + q.t);
   if (!q.p) errs.push('missing prompt');
   if (!Array.isArray(q.ex) || !q.ex.length) errs.push('missing explanation');
@@ -47,6 +54,7 @@ Q.forEach(q => {
   q.file = t.file || SRC_FILE[q.src] || q.src; q.page = t.page; q.pages = t.pages;
   q.code = q.sk.split(' ')[0]; q.skName = q.sk.slice(q.code.length + 1);
 });
+const qsIn = n => Q.filter(q => qrOf(unitOf(q.l)) === n);      // questions in a quarter
 const byId = Object.fromEntries(Q.map(q => [q.id, q]));
 const skillSort = (a, b) => { const [la, na] = a.split('.'), [lb, nb] = b.split('.'); return la === lb ? +na - +nb : la < lb ? -1 : 1; };
 function lessonsOf(uid) {
@@ -54,7 +62,7 @@ function lessonsOf(uid) {
   Q.filter(q => q.l === uid).forEach(q => { if (!m.has(q.sk)) m.set(q.sk, []); m.get(q.sk).push(q); });
   return [...m.entries()].sort((a, b) => skillSort(a[0].split(' ')[0], b[0].split(' ')[0])).map(([sk, qs]) => ({ sk, code: sk.split(' ')[0], name: sk.slice(sk.indexOf(' ') + 1), qs }));
 }
-window.__APP__ = { Q, INVALID, UNITS, lessonsOf };
+window.__APP__ = { Q, INVALID, UNITS, lessonsOf, qsIn, unitsIn };
 
 /* ================= PERSISTENCE (this device only) ================= */
 const KEY = 'iee-g6-mathquest-v2';
@@ -212,32 +220,32 @@ function rulesHTML() {
 /* ================= QUARTER TABS ================= */
 const QUARTERS = [
   { n: 1, ready: true, icon: '🚀', tag: 'Open now' },
-  { n: 2, icon: '🌱', tag: 'Coming soon' },
+  { n: 2, ready: true, icon: '🌱', tag: 'Open now' },
   { n: 3, icon: '🔭', tag: 'Coming soon' },
   { n: 4, icon: '🏁', tag: 'Coming soon' },
 ];
 function quarterCards() {
-  const s = statsFor(Q);
-  return `<div class="qgrid">${QUARTERS.map((q, i) => q.ready
-    ? `<button class="qcard ready" style="animation-delay:${i * .07}s" onclick="APP.quarter(${q.n})" aria-label="Quarter ${q.n}: ${UNITS.length} units, ${Q.length} questions. Open.">
+  return `<div class="qgrid">${QUARTERS.map((q, i) => { const QQ = qsIn(q.n), UU = unitsIn(q.n), s = statsFor(QQ); return q.ready && QQ.length
+    ? `<button class="qcard ready" style="animation-delay:${i * .07}s" onclick="APP.quarter(${q.n})" aria-label="Quarter ${q.n}: ${UU.length} units, ${QQ.length} questions. Open.">
         <span class="qnum" aria-hidden="true">Q${q.n}</span><span class="qtag">${q.tag}</span><span class="qic" aria-hidden="true">${q.icon}</span>
-        <h3>Quarter ${q.n}</h3><p>${UNITS.length} units · ${Q.length} questions</p>
+        <h3>Quarter ${q.n}</h3><p>${UU.length} unit${UU.length > 1 ? 's' : ''} · ${QQ.length} questions</p>
         <div class="qprog" role="progressbar" aria-label="Quarter ${q.n} completion" aria-valuenow="${s.completion || 0}" aria-valuemin="0" aria-valuemax="100"><i style="width:${s.completion || 0}%"></i></div>
         <span class="qgo">${s.attempted ? 'Continue' : 'Start'} Quarter ${q.n} →</span></button>`
     : `<button class="qcard later" style="animation-delay:${i * .07}s" onclick="APP.quarter(${q.n})" aria-label="Quarter ${q.n}: coming soon">
         <span class="qnum" aria-hidden="true">Q${q.n}</span><span class="qtag">🔒 ${q.tag}</span><span class="qic" aria-hidden="true">${q.icon}</span>
-        <h3>Quarter ${q.n}</h3><p>New units and lessons are on the way.</p><span class="qgo">Coming soon</span></button>`).join('')}</div>`;
+        <h3>Quarter ${q.n}</h3><p>New units and lessons are on the way.</p><span class="qgo">Coming soon</span></button>`; }).join('')}</div>`;
 }
 function quarterPage(n) {
   S = null; if (!ST.name) return welcome();
   let h = header() + `<main><button class="back" onclick="APP.home()">← Home</button>`;
-  if (n === 1) {
-    const s = statsFor(Q);
-    h += `<section class="uhero qhero" style="--uc:#6d4aff"><span class="ui big" aria-hidden="true">🚀</span><div><span class="un">Grade 6 Math Quest</span><h1>Quarter 1 · <span class="gt">Units &amp; lessons</span></h1>
-      <p>${UNITS.length} units · ${UNITS.reduce((k, u) => k + lessonsOf(u.id).length, 0)} lessons · ${Q.length} questions · Completion <b>${s.completion}%</b> · Accuracy <b>${accTxt(s.accuracy)}</b></p>
-      <div class="uacts"><button class="btn" onclick="APP.pickMixed()">🏆 Mixed challenge</button><button class="btn ghost" onclick="APP.report()">📊 Quarter report</button></div></div></section>
-      <h2 class="sec">Units in <span class="gt">Quarter 1</span></h2><div class="grid">`;
-    UNITS.forEach((u, i) => {
+  const QQ = qsIn(n), UU = unitsIn(n);
+  if (QUARTERS[n - 1].ready && QQ.length) {
+    CQ = n; const s = statsFor(QQ);
+    h += `<section class="uhero qhero" style="--uc:#6d4aff"><span class="ui big" aria-hidden="true">${QUARTERS[n - 1].icon}</span><div><span class="un">Grade 6 Math Quest</span><h1>Quarter ${n} · <span class="gt">Units &amp; lessons</span></h1>
+      <p>${UU.length} unit${UU.length > 1 ? 's' : ''} · ${UU.reduce((k, u) => k + lessonsOf(u.id).length, 0)} lessons · ${QQ.length} questions · Completion <b>${s.completion}%</b> · Accuracy <b>${accTxt(s.accuracy)}</b></p>
+      <div class="uacts"><button class="btn" onclick="APP.pickMixed(${n})">🏆 Mixed challenge</button><button class="btn ghost" onclick="APP.report()">📊 My report</button></div></div></section>
+      <h2 class="sec">Units in <span class="gt">Quarter ${n}</span></h2><div class="grid">`;
+    UU.forEach((u, i) => {
       const qs = Q.filter(q => q.l === u.id), st = statsFor(qs), ls = lessonsOf(u.id);
       h += `<button class="ucard" style="--uc:${u.color};animation-delay:${i * .05}s" data-n="${String(i + 1).padStart(2, '0')}" onclick="APP.unit('${u.id}')" aria-label="Unit ${i + 1}: ${u.name}. ${st.attempted} of ${st.total} answered.">
       <div class="uh"><span class="ui" aria-hidden="true">${u.icon}</span>${ring(st.completion, u.color)}</div>
@@ -246,9 +254,9 @@ function quarterPage(n) {
       <div class="meta"><span>${qs.length} questions · ${ls.length} lesson${ls.length > 1 ? 's' : ''}</span><span class="stars">${starStr(st.stars)}</span></div>
       <div class="meta2"><span>Accuracy: <b>${accTxt(st.accuracy)}</b></span>${st.mistakes ? `<span class="mk">${st.mistakes} to fix</span>` : ''}</div></button>`;
     });
-    h += `<button class="ucard final" onclick="APP.pickMixed()"><div class="uh"><span class="ui">🏆</span></div><h3>Mixed Challenge</h3><p>Questions from every Quarter 1 unit, shuffled. 20, 40 or all ${Q.length}.</p></button></div>`;
+    h += `<button class="ucard final" onclick="APP.pickMixed(${n})"><div class="uh"><span class="ui">🏆</span></div><h3>Mixed Challenge</h3><p>Questions from every Quarter ${n} unit, shuffled. 20, 40 or all ${QQ.length}.</p></button></div>`;
   } else {
-    h += `<div class="soon"><div class="soonic" aria-hidden="true">${QUARTERS[n - 1].icon}</div><span class="soonpill">Coming soon</span><h1>Quarter ${n}</h1><p>New units, lessons and challenges for Quarter ${n} are on the way. Keep practising Quarter 1 to be ready!</p><button class="btn" onclick="APP.quarter(1)">Go to Quarter 1</button></div>`;
+    h += `<div class="soon"><div class="soonic" aria-hidden="true">${QUARTERS[n - 1].icon}</div><span class="soonpill">Coming soon</span><h1>Quarter ${n}</h1><p>New units, lessons and challenges for Quarter ${n} are on the way. Keep practising to be ready!</p><button class="btn" onclick="APP.quarter(1)">Go to Quarter 1</button></div>`;
   }
   render(h + '</main>');
 }
@@ -285,7 +293,7 @@ function hub() {
   const nextU = UNITS.find(u => Q.some(q => q.l === u.id && !ST.rec[q.id])) || UNITS[0];
   h += `<main><section class="hero"><div class="hshapes" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i><span class="g g1">½</span><span class="g g2">×</span><span class="g g3">|x|</span></div>
       <div class="hl"><span class="eyebrow">✦ Grade 6 Math Quest</span><p class="hi">Welcome back,</p><h1>${esc(ST.name)}&nbsp;<span class="wave">👋</span></h1>
-      <p class="hsub">Ready to make <span class="gt">fractions, decimals &amp; integers</span> click? Pick up where you left off, or open <b>Quarter 1</b> to explore every unit and lesson.</p>
+      <p class="hsub">Ready to make <span class="gt">fractions, decimals &amp; integers</span> click? Pick up where you left off, or open a <b>quarter</b> to explore every unit and lesson.</p>
       <div class="hcta"><button class="btn" onclick="APP.unit('${nextU.id}')">▶ Continue: ${nextU.name}</button><button class="btn ghost" onclick="APP.pickMixed()">🏆 Mixed challenge</button></div>
       <div class="hstats"><span><b>${all.attempted}</b>/${all.total} answered</span><span>Accuracy <b>${accTxt(all.accuracy)}</b></span><span>🏅 <b>${earned}</b>/${BADGES.length} badges</span></div>
       <div class="hbar" role="progressbar" aria-valuenow="${all.completion || 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Overall completion"><i style="width:${all.completion || 0}%"></i></div></div>
@@ -304,9 +312,9 @@ function hub() {
 
 /* ================= UNIT PAGE ================= */
 function unitPage(uid) {
-  S = null; const u = unitOf(uid), idx = UNITS.indexOf(u), ls = lessonsOf(uid), qs = Q.filter(q => q.l === uid), s = statsFor(qs);
+  S = null; CQ = qrOf(unitOf(uid)); const u = unitOf(uid), idx = unitNo(u) - 1, ls = lessonsOf(uid), qs = Q.filter(q => q.l === uid), s = statsFor(qs);
   let h = header();
-  h += `<main><button class="back" onclick="APP.quarter(1)">← Quarter 1</button>
+  h += `<main><button class="back" onclick="APP.quarter(${qrOf(u)})">← Quarter ${qrOf(u)}</button>
     <section class="uhero" style="--uc:${u.color}"><span class="ui big" aria-hidden="true">${u.icon}</span><div><span class="un">Unit ${idx + 1}</span><h1>${u.name}</h1>
       <p>${qs.length} questions · ${ls.length} lesson${ls.length > 1 ? 's' : ''} · Completion <b>${s.completion}%</b> · Accuracy <b>${accTxt(s.accuracy)}</b></p>
       <div class="uacts"><button class="btn" onclick="APP.play('unit','${uid}')">▶ Play whole unit (${qs.length})</button>
@@ -318,9 +326,47 @@ function unitPage(uid) {
     h += `<div class="lrow" style="--uc:${u.color}"><div class="lcode">${l.code}</div><div class="linfo"><h3>${l.name}</h3>
       <div class="lbar" role="progressbar" aria-label="${l.name} completion" aria-valuenow="${ss.completion}" aria-valuemin="0" aria-valuemax="100"><i style="width:${ss.completion}%"></i></div>
       <small>${ss.attempted}/${ss.total} answered · Accuracy ${accTxt(ss.accuracy)}${ss.mistakes ? ` · <span class="mk">${ss.mistakes} to fix</span>` : ''}</small></div>
-      <span class="stars">${starStr(ss.stars)}</span><button class="btn sm" onclick="APP.play('lesson','${uid}',${i})" aria-label="Play lesson ${l.code} ${l.name}">Play ${l.qs.length}</button></div>`;
+      <span class="stars">${starStr(ss.stars)}</span>${TEACH[l.code] ? `<button class="btn sm teachb" onclick="APP.teach('${uid}','${l.code}')" aria-label="Teach me: lesson ${l.code} ${l.name}">📖 Teach me</button>` : ''}${INFO[l.code] ? `<button class="btn sm infob" onclick="APP.info('${uid}','${l.code}')" aria-label="Infographic: lesson ${l.code} ${l.name}">🎨 Infographic</button>` : ''}<button class="btn sm" onclick="APP.play('lesson','${uid}',${i})" aria-label="Play lesson ${l.code} ${l.name}">Play ${l.qs.length}</button></div>`;
   });
   render(h + '</div></main>');
+}
+
+/* ================= TEACH ME (lesson explanation) ================= */
+const TEACH = window.TEACH || {};
+function teachPage(uid, code) {
+  S = null; const u = unitOf(uid), i = lessonsOf(uid).findIndex(l => l.code === code), l = lessonsOf(uid)[i], t = TEACH[code];
+  if (!t || !l) return unitPage(uid);
+  CQ = qrOf(u);
+  render(header() + `<main class="teach"><button class="back" onclick="APP.unit('${uid}')">← ${esc(u.name)}</button>
+    <section class="uhero" style="--uc:${u.color}"><span class="ui big" aria-hidden="true">📖</span><div><span class="un">Teach me · ${l.code}</span><h1>${t.title}</h1>
+      <p>Lesson: ${esc(l.name)} · Read the steps and the examples, then practise.</p></div></section>
+    <div class="tw-body" style="--uc:${u.color}">${t.html}</div>
+    <div class="actions center"><button class="btn" onclick="APP.play('lesson','${uid}',${i})">▶ Practise this lesson (${l.qs.length})</button><button class="btn ghost" onclick="APP.unit('${uid}')">Back to lessons</button></div></main>`);
+  scrollTo(0, 0);
+}
+
+/* ================= INFOGRAPHIC (how-to-solve poster) ================= */
+const INFO = window.INFO || {};
+function infoPage(uid, code) {
+  S = null; const u = unitOf(uid), i = lessonsOf(uid).findIndex(l => l.code === code), l = lessonsOf(uid)[i], g = INFO[code];
+  if (!g || !l) return unitPage(uid);
+  CQ = qrOf(u);
+  const [lo, hi] = g.loop || [-1, -1];
+  const stepsHTML = g.steps.map((st, k) => `${k === lo ? `<div class="ig-loop">🔁 Repeat steps ${lo + 1}–${hi + 1} until there are no digits left to bring down</div>` : ''}
+    <div class="ig-step${k >= lo && k <= hi ? ' inloop' : ''}" style="animation-delay:${k * .08}s">
+      <div class="ig-num"><b>${k + 1}</b><span aria-hidden="true">${st.icon}</span></div>
+      <div class="ig-txt"><h3>${st.t}</h3><p>${st.d}</p></div>
+      <div class="ig-board">${st.b}</div></div>`).join('<div class="ig-link" aria-hidden="true">▼</div>');
+  render(header() + `<main class="info"><button class="back" onclick="APP.unit('${uid}')">← ${esc(u.name)}</button>
+    <article class="ig" style="--uc:${u.color}" aria-label="Infographic: ${esc(g.title)}">
+      <div class="ig-head"><img src="assets/logo.png" alt="" width="64" height="64"><div><span class="ig-tag">${l.code} · ${esc(l.name)}</span><h1>${g.title}</h1>
+        <p>Step-by-step · Grade 6 Math Quest</p></div></div>
+      <div class="ig-ex"><span>Example</span><b>${g.example}</b></div>
+      <div class="ig-steps">${stepsHTML}</div>
+      <div class="ig-foot"><div class="ig-warn"><h4>⚠️ Watch out</h4><p>${g.warn}</p></div><div class="ig-check"><h4>✅ Check it</h4><p>${g.check}</p></div></div>
+      <div class="ig-ans">🏁 ${g.answer}</div>
+    </article>
+    <div class="actions center"><button class="btn" onclick="APP.play('lesson','${uid}',${i})">▶ Practise this lesson (${l.qs.length})</button>${TEACH[code] ? `<button class="btn ghost" onclick="APP.teach('${uid}','${code}')">📖 Teach me</button>` : ''}<button class="btn ghost" onclick="window.print()">🖨️ Print</button></div></main>`);
 }
 
 /* ================= SESSION ================= */
@@ -330,7 +376,7 @@ function play(kind, uid, li) {
   else if (kind === 'unit10') { qs = shuffle(Q.filter(q => q.l === uid)).slice(0, 10); label = unitOf(uid).name + ' — Quick 10'; scope = 'u10:' + uid; }
   else if (kind === 'fixunit') { qs = Q.filter(q => q.l === uid && ST.rec[q.id] && !ST.rec[q.id].last); label = unitOf(uid).name + ' — Fix mistakes'; scope = 'fix:' + uid; }
   else if (kind === 'lesson') { const l = lessonsOf(uid)[li]; qs = l.qs.slice(); label = `${l.code} ${l.name}`; scope = 'l:' + l.code; }
-  else if (kind === 'mixed') { qs = shuffle(Q).slice(0, uid || Q.length); label = uid ? `Mixed Challenge — ${uid}` : 'Mixed Challenge — Marathon'; scope = 'mix' + (uid || 'all'); }
+  else if (kind === 'mixed') { const pool = li ? qsIn(li) : Q; qs = shuffle(pool).slice(0, uid || pool.length); label = (li ? `Quarter ${li} ` : '') + (uid ? `Mixed Challenge — ${uid}` : 'Mixed Challenge — Marathon'); scope = 'mix' + (li ? 'q' + li : '') + (uid || 'all'); }
   else if (kind === 'retry') { qs = shuffle(uid); label = 'Practise missed questions'; scope = 'retry'; }
   if (!qs || !qs.length) { toast('Nothing to practise here yet 🎉'); return; }
   S = { kind, uid, scope, label, qs, i: 0, results: [], streak: 0, bestStreak: 0, xp: 0, newBadges: [], t0: Date.now(), done: false };
@@ -507,7 +553,7 @@ function feedback(ok, q, note) {
     : `<div class="fb bad"><h4>❌ Not quite — here's the fix</h4><div class="ca">Correct answer: ${correctHTML(q)}</div><div class="how">How to solve it:</div>${steps(q.ex)}${exv}</div>`;
   const last = S.i === S.qs.length - 1;
   $('#acts').innerHTML = `<button class="btn ${ok ? 'green' : ''}" id="nextBtn" onclick="APP.next()">${last ? 'Finish & see results 🏁' : 'Next →'}</button>`;
-  setTimeout(() => { const n = $('#nextBtn'); n && n.focus({ preventScroll: true }); const f = $('#fb'); f && f.scrollIntoView({ behavior: reduce() ? 'auto' : 'smooth', block: 'nearest' }); }, 120);
+  setTimeout(() => { const n = $('#nextBtn'); n && n.focus({ preventScroll: true }); }, 120);   // no auto-scroll: the student scrolls to the feedback
 }
 function bump(pill, val, v) { const p = $(pill), x = $(val); if (!p || !x) return; x.textContent = v; p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }
 function floatXP(t, x, y) { if (reduce()) return; const d = document.createElement('div'); d.className = 'xpf'; d.textContent = t; d.style.left = (x - 40) + 'px'; d.style.top = (y - 10) + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 1200); }
@@ -539,7 +585,7 @@ function finish() {
     <div class="endstats"><div><b>${c.correct}/${c.total}</b>Score</div><div><b>${accTxt(c.accuracy)}</b>Accuracy</div><div><b>${c.completion}%</b>Completion</div><div><b>+${S.xp}</b>XP</div><div><b>🔥 ${S.bestStreak}</b>Best streak</div><div><b>${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</b>Time</div></div>
     ${S.newBadges.length ? `<div class="newb">${S.newBadges.map(id => { const b = BADGES.find(x => x.id === id); return `<span>${b.icon} ${b.name}</span>`; }).join('')}</div>` : ''}
     <div class="actions center">${missed.length ? `<button class="btn" onclick="APP.retryMissed()">🔁 Practise ${missed.length} missed</button>` : ''}
-      <button class="btn ghost" onclick="APP.again()">↻ Play again</button><button class="btn ghost" onclick="APP.report()">📊 My report</button><button class="btn green" onclick="APP.quarter(1)">🗺️ Quarter 1</button></div>
+      <button class="btn ghost" onclick="APP.again()">↻ Play again</button><button class="btn ghost" onclick="APP.report()">📊 My report</button><button class="btn green" onclick="APP.quarter(${CQ})">🗺️ Quarter ${CQ}</button></div>
     <h2 class="sec">Lesson breakdown</h2><div class="tw"><table class="bt"><thead><tr><th>Lesson</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>
     ${[...groups.entries()].map(([k, g]) => `<tr><td>${unitOf(g.u).icon} ${esc(k)}</td><td>${g.c}/${g.n}</td><td><div class="minibar"><i style="width:${pct(g.c, g.n)}%;background:${pct(g.c, g.n) >= 70 ? 'var(--ok)' : pct(g.c, g.n) >= 50 ? 'var(--gold)' : 'var(--bad)'}"></i></div>${pct(g.c, g.n)}%</td></tr>`).join('')}</tbody></table></div>
     ${missed.length ? `<h2 class="sec">Review your mistakes</h2><div class="missed">${missed.map(q => `<details class="m"><summary><small>${srcChip(q)} · ${esc(q.sk)}</small><span>${stripTags(q.p).slice(0, 140)}</span></summary><div class="mbody"><div class="ca">Correct answer: ${correctHTML(q)}</div>${steps(q.ex)}</div></details>`).join('')}</div>` : ''}
@@ -549,6 +595,7 @@ function finish() {
   if (malek) st >= 1 ? malek.lessonComplete() : malek.encourage();
 }
 let lastPlay = null;
+let CQ = 1;   // quarter the student is currently in
 
 /* ================= REPORT ================= */
 function report() {
@@ -568,7 +615,7 @@ function report() {
     <div class="endstats"><div><b>${all.attempted}/${all.total}</b>Questions answered</div><div><b>${all.completion}%</b>Completion</div><div><b>${accTxt(all.accuracy)}</b>Accuracy (all tries)</div><div><b>${all.correctLast}</b>Correct now</div><div><b>${all.mistakes}</b>Still to fix</div><div><b>${ST.xp}</b>XP</div></div>
     <p class="formula">Accuracy = correct answers ÷ answers checked (every try counts). Completion = different questions answered ÷ ${Q.length}.</p>
     <h2 class="sec">By unit</h2><div class="tw"><table class="bt"><thead><tr><th>Unit</th><th>Completion</th><th>Accuracy</th><th>Stars</th></tr></thead><tbody>
-    ${unitRows.map(r => `<tr><td>${r.u.icon} Unit ${r.i + 1}: ${r.u.name}</td><td>${bar(r.s.completion, r.u.color)}${r.s.attempted}/${r.s.total}</td><td>${bar(r.s.accuracy, accCol(r.s.accuracy))}${accTxt(r.s.accuracy)}</td><td class="stars">${starStr(r.s.stars)}</td></tr>`).join('')}</tbody></table></div>
+    ${unitRows.map(r => `<tr><td>${r.u.icon} Q${qrOf(r.u)} · Unit ${unitNo(r.u)}: ${r.u.name}</td><td>${bar(r.s.completion, r.u.color)}${r.s.attempted}/${r.s.total}</td><td>${bar(r.s.accuracy, accCol(r.s.accuracy))}${accTxt(r.s.accuracy)}</td><td class="stars">${starStr(r.s.stars)}</td></tr>`).join('')}</tbody></table></div>
     <h2 class="sec">🎯 What to practise next</h2>
     ${weak.length ? `<ul class="todo">${weak.slice(0, 8).map(r => `<li><b>${r.l.code}</b> ${r.l.name} — accuracy ${r.s.accuracy}% <button class="btn sm ghost" onclick="APP.playLesson('${r.u.id}','${r.l.code}')">Practise</button></li>`).join('')}</ul>` : `<p class="muted">${all.tries ? 'No weak lessons yet — great work! (A lesson appears here when its accuracy is below 70% after 3+ tries.)' : 'Answer some questions to see suggestions here.'}</p>`}
     ${notStarted.length ? `<p class="muted">Not started yet: ${notStarted.map(r => `<b>${r.l.code}</b>`).join(', ')}</p>` : ''}
@@ -585,7 +632,7 @@ function reportText() {
   const all = statsFor(Q), L = [];
   L.push(`Grade 6 Math Quest — Student Performance Report (International Education Egypt)`, `Student: ${ST.name}`, `Date: ${new Date().toLocaleDateString('en-GB')}`,
     `Answered: ${all.attempted}/${all.total} (${all.completion}%) · Accuracy: ${accTxt(all.accuracy)} · Still to fix: ${all.mistakes} · XP: ${ST.xp}`, '', 'By unit:');
-  UNITS.forEach((u, i) => { const s = statsFor(Q.filter(q => q.l === u.id)); L.push(`  Unit ${i + 1} ${u.name}: ${s.attempted}/${s.total} answered, accuracy ${accTxt(s.accuracy)}`); });
+  UNITS.forEach((u, i) => { const s = statsFor(Q.filter(q => q.l === u.id)); L.push(`  Q${qrOf(u)} Unit ${unitNo(u)} ${u.name}: ${s.attempted}/${s.total} answered, accuracy ${accTxt(s.accuracy)}`); });
   L.push('', 'By lesson:'); UNITS.forEach(u => lessonsOf(u.id).forEach(l => { const s = statsFor(l.qs); L.push(`  ${l.sk}: ${s.attempted}/${s.total}, accuracy ${accTxt(s.accuracy)}${s.mistakes ? `, ${s.mistakes} to fix` : ''}`); }));
   L.push('', `Badges: ${BADGES.filter(b => ST.badges[b.id]).map(b => b.name).join(', ') || 'none yet'}`);
   return L.join('\n');
@@ -605,11 +652,12 @@ function resetAll() {
 }
 
 /* ================= MIXED PICKER ================= */
-function pickMixed() {
-  modal(`<h3>🏆 Mixed Challenge</h3><p>Questions from all ${UNITS.length} units, shuffled.</p><div class="opts2">
+function pickMixed(n) {
+  const pool = n ? qsIn(n) : Q, uu = n ? unitsIn(n) : UNITS;
+  modal(`<h3>🏆 ${n ? `Quarter ${n} ` : ''}Mixed Challenge</h3><p>Questions from ${uu.length > 1 ? `all ${uu.length} units` : 'this quarter'}, shuffled.</p><div class="opts2">
     <button class="btn ghost" data-act="20">⚡ Quick round <small>20 questions</small></button><button class="btn ghost" data-act="40">🔥 Big round <small>40 questions</small></button>
-    <button class="btn" data-act="0">📚 Marathon <small>all ${Q.length}</small></button><button class="btn ghost sm" data-act="x">Cancel</button></div>`,
-    a => { if (a !== 'x') play('mixed', +a || 0); });
+    <button class="btn" data-act="0">📚 Marathon <small>all ${pool.length}</small></button><button class="btn ghost sm" data-act="x">Cancel</button></div>`,
+    a => { if (a !== 'x') { lastPlay = ['mixed', +a || 0, n]; play('mixed', +a || 0, n); } });
 }
 
 /* ================= PUBLIC API (used by onclick) ================= */
@@ -624,6 +672,8 @@ window.APP = {
   toggleSound: b => { sound = !sound; b.textContent = sound ? '🔊' : '🔇'; b.setAttribute('aria-label', sound ? 'Mute sounds' : 'Turn sounds on'); b.setAttribute('aria-pressed', !sound); },
   changeName: () => welcome(),
   quarter: n => { beep('tap'); quarterPage(n); },
+  teach: (uid, code) => { beep('tap'); teachPage(uid, code); },
+  info: (uid, code) => { beep('tap'); infoPage(uid, code); },
 };
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && S && S.answered && !S.done && document.activeElement && !['BUTTON', 'INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) next(); });
 // Malek (IEE learning buddy): no welcome screen; he docks at once and greets with his lip-synced welcome.
@@ -639,5 +689,7 @@ const malek = window.IEEMalek ? IEEMalek.init({
   welcomeVideos: { en: 'IEE-Malek-v1.1.0/iee-malek/assets/voice/welcome-en.mp4' },
   voiceClips: window.IEE_MALEK_CLIPS || null
 }) : null;
+// Malek must never scroll the page by himself. The page keeps space for him instead (see "Malek placement" in index.html).
+if (malek && malek._buddy) malek._buddy.ensureClear = function () {};
 ST.name ? hub() : welcome();
 })();
