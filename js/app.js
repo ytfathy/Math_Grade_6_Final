@@ -14,7 +14,7 @@ const UNITS = [
   { id: 'ab', name: 'Opposites & Absolute Value', icon: '🪞', color: '#a855f7' },
   { id: 'co', name: 'Compare & Order Numbers', icon: '⚖️', color: '#e8558f' },
   // ---- Quarter 2 ----
-  { id: 'm4', qr: 2, name: 'Module 4: Decimals & Whole Numbers', icon: '🧮', color: '#0f9d8a' },
+  { id: 'm4', qr: 2, name: 'Module 4: Decimals & Whole Numbers', icon: '🧮', color: '#0f9d8a', video: 'assets/hands-on-video.mp4' },
 ];
 const unitOf = id => UNITS.find(u => u.id === id);
 const qrOf = u => u.qr || 1;                                   // which quarter a unit belongs to
@@ -319,6 +319,7 @@ function unitPage(uid) {
       <p>${qs.length} questions · ${ls.length} lesson${ls.length > 1 ? 's' : ''} · Completion <b>${s.completion}%</b> · Accuracy <b>${accTxt(s.accuracy)}</b></p>
       <div class="uacts"><button class="btn" onclick="APP.play('unit','${uid}')">▶ Play whole unit (${qs.length})</button>
       ${qs.length > 10 ? `<button class="btn ghost" onclick="APP.play('unit10','${uid}')">⚡ Quick 10</button>` : ''}
+      ${u.video ? `<button class="btn ghost" onclick="APP.video('${uid}')">🎬 Hands-on Video</button>` : ''}
       ${s.mistakes ? `<button class="btn ghost warnb" onclick="APP.play('fixunit','${uid}')">🔁 Fix ${s.mistakes} mistake${s.mistakes > 1 ? 's' : ''}</button>` : ''}</div></div></section>
     <h2 class="sec">Lessons in this <span class="gt">unit</span></h2><div class="lessons">`;
   ls.forEach((l, i) => {
@@ -329,6 +330,18 @@ function unitPage(uid) {
       <span class="stars">${starStr(ss.stars)}</span>${TEACH[l.code] ? `<button class="btn sm teachb" onclick="APP.teach('${uid}','${l.code}')" aria-label="Teach me: lesson ${l.code} ${l.name}">📖 Teach me</button>` : ''}${INFO[l.code] ? `<button class="btn sm infob" onclick="APP.info('${uid}','${l.code}')" aria-label="Infographic: lesson ${l.code} ${l.name}">🎨 Infographic</button>` : ''}<button class="btn sm" onclick="APP.play('lesson','${uid}',${i})" aria-label="Play lesson ${l.code} ${l.name}">Play ${l.qs.length}</button></div>`;
   });
   render(h + '</div></main>');
+}
+
+/* ================= HANDS-ON VIDEO ================= */
+function videoPage(uid) {
+  S = null; const u = unitOf(uid);
+  if (!u || !u.video) return unitPage(uid);
+  CQ = qrOf(u);
+  render(header() + `<main><button class="back" onclick="APP.unit('${uid}')">← ${esc(u.name)}</button>
+    <section class="uhero" style="--uc:${u.color}"><span class="ui big" aria-hidden="true">🎬</span><div><span class="un">Hands-on Video</span><h1>${u.name}</h1></div></section>
+    <video src="${u.video}" controls playsinline style="display:block;width:100%;max-height:70vh;margin-top:16px;border-radius:20px;background:#000"></video>
+    <div class="actions center"><button class="btn" onclick="APP.unit('${uid}')">← Back to ${esc(u.name)}</button></div></main>`);
+  scrollTo(0, 0);
 }
 
 /* ================= TEACH ME (lesson explanation) ================= */
@@ -674,6 +687,7 @@ window.APP = {
   quarter: n => { beep('tap'); quarterPage(n); },
   teach: (uid, code) => { beep('tap'); teachPage(uid, code); },
   info: (uid, code) => { beep('tap'); infoPage(uid, code); },
+  video: uid => { beep('tap'); videoPage(uid); },
 };
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && S && S.answered && !S.done && document.activeElement && !['BUTTON', 'INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) next(); });
 // Malek (IEE learning buddy): no welcome screen; he docks at once and greets with his lip-synced welcome.
