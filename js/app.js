@@ -22,10 +22,11 @@ const unitsIn = n => UNITS.filter(u => qrOf(u) === n);
 const unitNo = u => unitsIn(qrOf(u)).indexOf(u) + 1;            // unit number inside its quarter
 
 /* ================= LOAD + VALIDATE QUESTION DATA ================= */
-const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx', 'Module 4 Worksheet': 'Module 4 Worksheet' };
+const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx', 'Module 4 Worksheet': 'Module 4 Worksheet', 'Multiply Worksheet': 'Multiply Worksheet' };
 const raw = [];
 (window.Q_FR6 || []).forEach(q => { q.id = 'R' + q.n; q.src = 'Final Revision 6'; q.of = 50; raw.push(q); });
 (window.Q_M4 || []).forEach(q => { q.id = 'M4-' + q.n; q.src = 'Module 4 Worksheet'; q.of = 100; raw.push(q); });
+(window.Q_M4_MUL || []).forEach(q => { q.id = 'MUL-' + q.n; q.src = 'Multiply Worksheet'; q.of = 10; raw.push(q); });
 try { raw.push(...window.buildQuestions(window.DSL)); } catch (e) { console.error('Question generator failed', e); }
 const VALID_T = ['input', 'choice', 'sign', 'order', 'nlpick', 'graph', 'nlmiss'];
 function validate(q) {
@@ -552,7 +553,7 @@ function feedback(ok, q, note) {
     : `<div class="fb bad"><h4>❌ Not quite — here's the fix</h4><div class="ca">Correct answer: ${correctHTML(q)}</div><div class="how">How to solve it:</div>${steps(q.ex)}${exv}</div>`;
   const last = S.i === S.qs.length - 1;
   $('#acts').innerHTML = `<button class="btn ${ok ? 'green' : ''}" id="nextBtn" onclick="APP.next()">${last ? 'Finish & see results 🏁' : 'Next →'}</button>`;
-  setTimeout(() => { const n = $('#nextBtn'); n && n.focus({ preventScroll: true }); const f = $('#fb'); f && f.scrollIntoView({ behavior: reduce() ? 'auto' : 'smooth', block: 'nearest' }); }, 120);
+  setTimeout(() => { const n = $('#nextBtn'); n && n.focus({ preventScroll: true }); }, 120);   // no auto-scroll: the student scrolls to the feedback
 }
 function bump(pill, val, v) { const p = $(pill), x = $(val); if (!p || !x) return; x.textContent = v; p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }
 function floatXP(t, x, y) { if (reduce()) return; const d = document.createElement('div'); d.className = 'xpf'; d.textContent = t; d.style.left = (x - 40) + 'px'; d.style.top = (y - 10) + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 1200); }
@@ -688,5 +689,7 @@ const malek = window.IEEMalek ? IEEMalek.init({
   welcomeVideos: { en: 'IEE-Malek-v1.1.0/iee-malek/assets/voice/welcome-en.mp4' },
   voiceClips: window.IEE_MALEK_CLIPS || null
 }) : null;
+// Malek must never scroll the page by himself. The page keeps space for him instead (see "Malek placement" in index.html).
+if (malek && malek._buddy) malek._buddy.ensureClear = function () {};
 ST.name ? hub() : welcome();
 })();

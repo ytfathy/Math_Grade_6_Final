@@ -410,6 +410,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .tw-ld td.ld-more{font:600 14px var(--fb);color:var(--muted);text-align:left;width:auto}
 .ax-k{color:#f08a00;font-weight:800}
 .tw-carry{color:#f08a00;font-size:15px}
+.prompt .q-mul{display:flex;width:max-content;margin:10px 0 0;font-size:28px}
 .tw-list{margin:4px 0;padding-left:22px;font-size:17px;line-height:1.6}
 .tw-grid{width:100%;max-width:320px;display:block;margin:8px 0}
 .tw-grid rect{fill:#fff;stroke:#c9c3ef;stroke-width:1}
@@ -450,6 +451,20 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .ig-ans{margin:4px 22px 22px;text-align:center;font:700 24px var(--fd);color:#fff;background:linear-gradient(90deg,var(--uc),var(--navy));border-radius:18px;padding:14px}
 @media (max-width:760px){.ig-step{grid-template-columns:auto 1fr}.ig-board{grid-column:1/-1;justify-self:stretch;min-width:0;overflow-x:auto}.ig-foot{grid-template-columns:1fr}.ig-head h1{font-size:24px}.ig-head{padding:18px}.ig-ex b{font-size:22px}}
 @media print{#bg,header.top,.info .back,.info .actions,[class*="malek"],[id*="malek"]{display:none!important}body{background:#fff!important}.ig{box-shadow:none;border:1px solid #ddd}.ig-step{break-inside:avoid;animation:none}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* ===== Malek placement: he gets his own space, so he never covers content and never scrolls the page ===== */
+@media (min-width:1000px){
+  body.iee-m-reserve{padding-right:300px!important}          /* empty strip on the right for Malek */
+  .iee-m-buddy .iee-m-bubble{max-width:250px}
+}
+@media (max-width:999.98px){
+  /* slim bar at the bottom; the page already keeps room for it underneath (--iee-m-reserve) */
+  .iee-m-buddy{left:0!important;right:0!important;bottom:0!important;flex-direction:row-reverse!important;align-items:center!important;justify-content:flex-start;gap:10px;
+    padding:8px max(12px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) 12px;background:rgba(255,255,255,.97);border-top:1px solid #e6e3f5;box-shadow:0 -6px 18px rgba(14,26,79,.08)}
+  .iee-m-buddy .iee-m-body{display:none!important}
+  .iee-m-buddy .iee-m-avatar{display:block!important;width:56px;height:56px;flex:none}
+  .iee-m-buddy .iee-m-bubble{max-width:none!important;flex:1;box-shadow:none;background:#f4f1ff;font-size:14px!important;padding:8px 12px;border-radius:14px}
+}
 </style>
 </head>
 <body>
@@ -466,6 +481,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 <script src="data/gen.js"></script>
 <script src="data/trace.js"></script>
 <script src="data/q2_m4.js"></script>
+<script src="data/q2_multiply.js"></script>
 <script src="data/teach.js"></script>
 <script src="data/infographic.js"></script>
 <script src="js/app.js"></script>
