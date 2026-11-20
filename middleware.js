@@ -41,12 +41,14 @@ export default async function middleware(request) {
       provider: 'google',
       options: { redirectTo: `${url.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
     });
-    return error || !data?.url ? redirect(url, '/login?error=1', out) : redirect(url, data.url, out);
+    return error || !data?.url ? fail(url, error?.message, out) : redirect(url, data.url, out);
   }
-  if (path === '/auth/callback') {
+  // Supabase sends people back to /auth/callback, or to the Site URL (any page) when that address isn't allow-listed.
+  if (path === '/auth/callback' || url.searchParams.has('code')) {
     const code = url.searchParams.get('code');
-    const ok = code && !(await supabase.auth.exchangeCodeForSession(code)).error;
-    return redirect(url, ok ? '/' : '/login?error=1', out);
+    if (!code) return fail(url, url.searchParams.get('error_description') || url.searchParams.get('error'), out);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    return error ? fail(url, error.message, out) : redirect(url, '/', out);
   }
   if (path === '/auth/logout') {
     await supabase.auth.signOut();
@@ -60,7 +62,7 @@ export default async function middleware(request) {
   const viaGoogle = (meta.providers || [meta.provider]).includes('google');
   const signedIn = !!claims && viaGoogle;
 
-  if (path === '/login') return signedIn ? redirect(url, '/', out) : html(200, loginPage(url.searchParams.has('error')), out);
+  if (path === '/login') return signedIn ? redirect(url, '/', out) : html(200, loginPage(url.searchParams.get('error')), out);
   if (!signedIn) return redirect(url, '/login', out);
 
   const email = norm(claims.email), key = `${claims.sub}|${norm(CODE)}`;
@@ -78,6 +80,7 @@ function redirect(url, to, headers) {
   headers.set('Location', new URL(to, url).toString());
   return new Response(null, { status: 302, headers });
 }
+const fail = (url, reason, headers) => redirect(url, '/login?error=' + encodeURIComponent(String(reason || 'unknown').slice(0, 200)), headers);
 function html(status, body, headers) {
   headers.set('Content-Type', 'text/html; charset=utf-8');
   return new Response(body, { status, headers });

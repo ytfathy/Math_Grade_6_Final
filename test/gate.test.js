@@ -26,6 +26,12 @@ const server = http.createServer((req, res) => {
   const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
   if (req.url.startsWith('/auth/v1/user')) return u ? send(200, { id: u.sub, email: u.email, aud: 'authenticated' }) : send(401, { msg: 'bad jwt' });
   if (req.url.startsWith('/auth/v1/logout')) { res.writeHead(204); return res.end(); }
+  if (req.url.startsWith('/auth/v1/token')) {
+    let body = ''; req.on('data', d => body += d);
+    return req.on('end', () => JSON.parse(body).auth_code === 'good-code'
+      ? send(200, { access_token: jwt(USERS.paid), refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'u1', email: USERS.paid.email } })
+      : send(400, { error: 'invalid_grant', error_description: 'Invalid code' }));
+  }
   if (req.url.startsWith('/rest/v1/licenses')) {
     if (restFails) return send(500, { message: 'boom' });
     return send(200, u ? LICENSES.filter(r => r.email.trim().toLowerCase() === u.email) : []);
@@ -76,6 +82,25 @@ test('a SUPABASE_URL pasted with /rest/v1/ still signs in at the project root', 
     const loc = new URL((await get('/auth/login')).headers.get('location'));
     assert.equal(loc.origin + loc.pathname, base + '/auth/v1/authorize');
   } finally { process.env.SUPABASE_URL = keep; }
+});
+
+test('Google sign-in code is accepted at /auth/callback or any page (Site URL fallback)', async () => {
+  const login = await get('/auth/login');
+  const verifier = login.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
+  for (const p of ['/auth/callback?code=good-code', '/?code=good-code']) {
+    const r = await mw(new Request('https://mathgrade6final.vercel.app' + p, { headers: { cookie: verifier } }));
+    assert.equal(r.headers.get('location'), 'https://mathgrade6final.vercel.app/', p);
+    assert.match(r.headers.getSetCookie().join('\n'), /sb-localhost-auth-token=base64-/, p);
+  }
+});
+
+test('a failed sign-in shows the reason on the login page', async () => {
+  const r = await get('/auth/callback?error=access_denied&error_description=Redirect%20not%20allowed');
+  assert.equal(r.headers.get('location'), 'https://mathgrade6final.vercel.app/login?error=Redirect%20not%20allowed');
+  const page = await (await get('/login?error=Redirect%20not%20allowed')).text();
+  assert.match(page, /Redirect not allowed/);
+  const bad = await get('/?code=bad-code');
+  assert.match(bad.headers.get('location'), /\/login\?error=/);
 });
 
 test('licensed user gets through (email/code compared ignoring case and spaces)', async () => {
