@@ -69,6 +69,15 @@ test('/auth/login sends the user to Google via Supabase with a PKCE cookie', asy
   assert.match(r.headers.get('set-cookie') || '', /code-verifier/);
 });
 
+test('a SUPABASE_URL pasted with /rest/v1/ still signs in at the project root', async () => {
+  const keep = process.env.SUPABASE_URL;
+  process.env.SUPABASE_URL = base + '/rest/v1/';
+  try {
+    const loc = new URL((await get('/auth/login')).headers.get('location'));
+    assert.equal(loc.origin + loc.pathname, base + '/auth/v1/authorize');
+  } finally { process.env.SUPABASE_URL = keep; }
+});
+
 test('licensed user gets through (email/code compared ignoring case and spaces)', async () => {
   const r = await get('/assets/logo.png', USERS.paid);
   assert.equal(r.headers.get('x-middleware-next'), '1');

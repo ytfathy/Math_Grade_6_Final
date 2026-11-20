@@ -19,7 +19,10 @@ export const matchesLicense = (rows, email, code) =>
 export default async function middleware(request) {
   const url = new URL(request.url), path = url.pathname;
   const out = new Headers({ 'Cache-Control': 'private, no-store' });
-  const SUPABASE_URL = env('SUPABASE_URL'), KEY = env('SUPABASE_ANON_KEY'), CODE = env('PROGRAM_CODE');
+  const KEY = env('SUPABASE_ANON_KEY'), CODE = env('PROGRAM_CODE');
+  // Keep only https://xxxx.supabase.co even if a longer URL (e.g. .../rest/v1/) was pasted.
+  let SUPABASE_URL = '';
+  try { SUPABASE_URL = new URL(env('SUPABASE_URL')).origin; } catch { /* invalid URL: fail closed below */ }
   // Fail closed: a missing setting must never open the program.
   if (!SUPABASE_URL || !KEY || !CODE) return html(500, messagePage('الموقع غير مُعدّ بعد', 'Site is not configured yet (missing environment variables).'), out);
 
