@@ -169,7 +169,8 @@ function header(extra = '') {
     <div class="sp"></div>${extra}
     <span class="pill xp" id="xpPill" title="Experience points">⚡ <b id="xpv">${ST.xp}</b> XP</span>
     ${S && !S.done ? `<span class="pill fire" id="firePill" title="Correct answers in a row">🔥 <b id="stv">${S.streak}</b></span>` : `<button class="pill linkish" onclick="APP.report()">📊 My report</button>`}
-    <button class="iconbtn" aria-label="${sound ? 'Mute sounds' : 'Turn sounds on'}" aria-pressed="${!sound}" onclick="APP.toggleSound(this)">${sound ? '🔊' : '🔇'}</button></header>`;
+    <button class="iconbtn" aria-label="${sound ? 'Mute sounds' : 'Turn sounds on'}" aria-pressed="${!sound}" onclick="APP.toggleSound(this)">${sound ? '🔊' : '🔇'}</button>
+    <a class="iconbtn" href="/auth/logout" style="text-decoration:none" aria-label="Sign out" title="تسجيل الخروج · Sign out">🚪</a></header>`;
 }
 function render(html) { if (malek && (!S || S.done)) malek.questionClosed(); $('#app').innerHTML = html; enhance(); window.scrollTo({ top: 0 }); const h = $('#app h1, #app h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
 
