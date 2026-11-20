@@ -1,5 +1,5 @@
 /* Login gate (Vercel Routing Middleware). Runs on Vercel's servers before ANY page or file is sent.
-   Only people signed in with Google whose email is in the Supabase `licenses` table for PROGRAM_CODE get through.
+   Only people signed in with Google whose email is in the Supabase `Licenses` table (capital L) for PROGRAM_CODE get through.
    Env vars: SUPABASE_URL, SUPABASE_ANON_KEY (publishable/anon key only — never service_role), PROGRAM_CODE. */
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from '@supabase/ssr';
 import { next } from '@vercel/functions';
@@ -68,7 +68,7 @@ export default async function middleware(request) {
   const email = norm(claims.email), key = `${claims.sub}|${norm(CODE)}`;
   if ((approved.get(key) || 0) < Date.now()) {
     // RLS lets a user read only their own rows, so this returns at most this user's licenses.
-    const { data: rows, error } = await supabase.from('licenses').select('email, program_code');
+    const { data: rows, error } = await supabase.from('Licenses').select('email, program_code');
     if (error) return html(503, messagePage('حدث خطأ مؤقت، حاول مرة أخرى بعد قليل.', 'Temporary error, please try again shortly.', [error.code, error.message].filter(Boolean).join(' — ')), out);
     if (!matchesLicense(rows, email, CODE)) return html(403, notSubscribedPage(email, CODE), out);
     approved.set(key, Date.now() + APPROVED_TTL_MS);

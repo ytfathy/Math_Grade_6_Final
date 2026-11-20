@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
       ? send(200, { access_token: jwt(USERS.paid), refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'u1', email: USERS.paid.email } })
       : send(400, { error: 'invalid_grant', error_description: 'Invalid code' }));
   }
-  if (req.url.startsWith('/rest/v1/licenses')) {
+  if (req.url.startsWith('/rest/v1/Licenses')) {
     if (restFails) return send(500, { message: 'boom' });
     return send(200, u ? LICENSES.filter(r => r.email.trim().toLowerCase() === u.email) : []);
   }
