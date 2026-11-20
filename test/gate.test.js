@@ -133,7 +133,11 @@ test('/auth/logout clears the session and returns to /login', async () => {
 
 test('database error fails closed', async () => {
   restFails = true;
-  try { assert.equal((await get('/', USERS.other)).status, 503); } finally { restFails = false; }
+  try {
+    const r = await get('/', USERS.other);
+    assert.equal(r.status, 503);
+    assert.match(await r.text(), /boom/);
+  } finally { restFails = false; }
 });
 
 test('missing settings fail closed', async () => {

@@ -49,6 +49,7 @@ export const notSubscribedPage = (email, code) => {
   <a class="btn" href="/auth/logout?switch=1">🔄 <span>الدخول بحساب آخر <small>· Use a different account</small></span></a>`);
 };
 
-export const messagePage = (ar, en) => shell('تنبيه | Notice', `
+export const messagePage = (ar, en, detail) => shell('تنبيه | Notice', `
   <div class="ic" aria-hidden="true">⚠️</div><h1>${esc(ar)}</h1><p class="en">${esc(en)}</p>
+  ${detail ? `<p class="en"><small>${esc(detail)}</small></p>` : ''}
   <a class="btn" href="/">إعادة المحاولة <small>· Try again</small></a>`);

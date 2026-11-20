@@ -69,7 +69,7 @@ export default async function middleware(request) {
   if ((approved.get(key) || 0) < Date.now()) {
     // RLS lets a user read only their own rows, so this returns at most this user's licenses.
     const { data: rows, error } = await supabase.from('licenses').select('email, program_code');
-    if (error) return html(503, messagePage('حدث خطأ مؤقت، حاول مرة أخرى بعد قليل.', 'Temporary error, please try again shortly.'), out);
+    if (error) return html(503, messagePage('حدث خطأ مؤقت، حاول مرة أخرى بعد قليل.', 'Temporary error, please try again shortly.', [error.code, error.message].filter(Boolean).join(' — ')), out);
     if (!matchesLicense(rows, email, CODE)) return html(403, notSubscribedPage(email, CODE), out);
     approved.set(key, Date.now() + APPROVED_TTL_MS);
   }
