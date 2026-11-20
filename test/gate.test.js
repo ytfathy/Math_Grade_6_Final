@@ -13,7 +13,7 @@ const USERS = {
 };
 // Rows as stored in the table (messy casing/spaces on purpose), returned per user like RLS would.
 const LICENSES = [{ email: '  Malek@Gmail.COM ', program_code: ' Math-G6' }, { email: 'sara@gmail.com', program_code: 'Science-G6' }];
-let restFails = false;
+let restFails = false, restHangs = false, restCalls = 0;
 
 const tokenUser = auth => {
   const part = (auth || '').split('.')[1];
@@ -33,6 +33,8 @@ const server = http.createServer((req, res) => {
       : send(400, { error: 'invalid_grant', error_description: 'Invalid code' }));
   }
   if (req.url.startsWith('/rest/v1/Licenses')) {
+    restCalls++;
+    if (restHangs) return; // never answers
     if (restFails) return send(500, { message: 'boom' });
     return send(200, u ? LICENSES.filter(r => r.email.trim().toLowerCase() === u.email) : []);
   }
@@ -106,6 +108,7 @@ test('a failed sign-in shows the reason on the login page', async () => {
 test('licensed user gets through (email/code compared ignoring case and spaces)', async () => {
   const r = await get('/assets/logo.png', USERS.paid);
   assert.equal(r.headers.get('x-middleware-next'), '1');
+  assert.equal(r.headers.get('cache-control'), 'private, no-cache'); // browser may keep files and revalidate
 });
 
 test('signed-in user not on the list sees the not-subscribed page', async () => {
@@ -129,6 +132,24 @@ test('/auth/logout clears the session and returns to /login', async () => {
   assert.match(r.headers.get('set-cookie') || '', /sb-localhost-auth-token=;/);
   const s = await get('/auth/logout?switch=1', USERS.paid);
   assert.equal(s.headers.get('location'), 'https://mathgrade6final.vercel.app/auth/login');
+});
+
+test('a page load of 30 parallel files makes one license query, not 30', async () => {
+  restCalls = 0;
+  const u = { sub: 'u9', email: 'malek@gmail.com', app_metadata: { providers: ['google'] } };
+  USERS.burst = u;
+  const rs = await Promise.all(Array.from({ length: 30 }, (_, i) => get('/f' + i + '.js', u)));
+  assert.ok(rs.every(r => r.headers.get('x-middleware-next') === '1'));
+  assert.equal(restCalls, 1);
+});
+
+test('a stuck Supabase shows the error page after the timeout instead of hanging', { timeout: 15000 }, async () => {
+  restHangs = true;
+  try {
+    const t = Date.now(), r = await get('/', USERS.wrongProgram);
+    assert.equal(r.status, 503);
+    assert.ok(Date.now() - t < 10000);
+  } finally { restHangs = false; }
 });
 
 test('database error fails closed', async () => {

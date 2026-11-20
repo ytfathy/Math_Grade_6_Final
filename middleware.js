@@ -11,6 +11,14 @@ export const norm = s => String(s ?? '').trim().toLowerCase();
 // shortcut: approved users are remembered per server instance for 5 min, so removing a customer takes up to 5 min; set to 0 for instant.
 const APPROVED_TTL_MS = 5 * 60 * 1000;
 const approved = new Map();
+const lookups = new Map(); // one license query at a time per user, shared by the ~30 parallel file requests of a page load
+
+// A slow or stuck Supabase should show our error page quickly instead of hanging the browser.
+const SUPABASE_TIMEOUT_MS = 8000;
+const fetchWithTimeout = (input, init = {}) => {
+  const t = AbortSignal.timeout(SUPABASE_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: init.signal && AbortSignal.any ? AbortSignal.any([init.signal, t]) : init.signal || t });
+};
 
 /** True when one of the user's license rows matches their email and this program (case and spaces ignored). */
 export const matchesLicense = (rows, email, code) =>
@@ -18,7 +26,7 @@ export const matchesLicense = (rows, email, code) =>
 
 export default async function middleware(request) {
   const url = new URL(request.url), path = url.pathname;
-  const out = new Headers({ 'Cache-Control': 'private, no-store' });
+  const out = new Headers();
   const KEY = env('SUPABASE_ANON_KEY'), CODE = env('PROGRAM_CODE');
   // Keep only https://xxxx.supabase.co even if a longer URL (e.g. .../rest/v1/) was pasted.
   let SUPABASE_URL = '';
@@ -27,6 +35,7 @@ export default async function middleware(request) {
   if (!SUPABASE_URL || !KEY || !CODE) return html(500, messagePage('الموقع غير مُعدّ بعد', 'Site is not configured yet (missing environment variables).'), out);
 
   const supabase = createServerClient(SUPABASE_URL, KEY, {
+    global: { fetch: fetchWithTimeout },
     cookies: {
       getAll: () => parseCookieHeader(request.headers.get('cookie') ?? ''),
       setAll: (list, headers) => {
@@ -68,20 +77,26 @@ export default async function middleware(request) {
   const email = norm(claims.email), key = `${claims.sub}|${norm(CODE)}`;
   if ((approved.get(key) || 0) < Date.now()) {
     // RLS lets a user read only their own rows, so this returns at most this user's licenses.
-    const { data: rows, error } = await supabase.from('Licenses').select('email, program_code');
+    if (!lookups.has(key)) lookups.set(key, Promise.resolve(supabase.from('Licenses').select('email, program_code').abortSignal(AbortSignal.timeout(SUPABASE_TIMEOUT_MS))).finally(() => lookups.delete(key)));
+    const { data: rows, error } = await lookups.get(key);
     if (error) return html(503, messagePage('حدث خطأ مؤقت، حاول مرة أخرى بعد قليل.', 'Temporary error, please try again shortly.', [error.code, error.message].filter(Boolean).join(' — ')), out);
     if (!matchesLicense(rows, email, CODE)) return html(403, notSubscribedPage(email, CODE), out);
     approved.set(key, Date.now() + APPROVED_TTL_MS);
   }
+  // Let the browser keep program files and re-check them cheaply (304) instead of re-downloading everything each visit.
+  // `private` keeps shared caches out; when auth cookies were just set, Supabase's own no-store headers are already in `out`.
+  if (!out.has('Cache-Control')) out.set('Cache-Control', 'private, no-cache');
   return next({ headers: out });
 }
 
 function redirect(url, to, headers) {
+  headers.set('Cache-Control', 'private, no-store');
   headers.set('Location', new URL(to, url).toString());
   return new Response(null, { status: 302, headers });
 }
 const fail = (url, reason, headers) => redirect(url, '/login?error=' + encodeURIComponent(String(reason || 'unknown').slice(0, 200)), headers);
 function html(status, body, headers) {
+  headers.set('Cache-Control', 'private, no-store');
   headers.set('Content-Type', 'text/html; charset=utf-8');
   return new Response(body, { status, headers });
 }
