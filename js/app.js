@@ -22,12 +22,13 @@ const unitsIn = n => UNITS.filter(u => qrOf(u) === n);
 const unitNo = u => unitsIn(qrOf(u)).indexOf(u) + 1;            // unit number inside its quarter
 
 /* ================= LOAD + VALIDATE QUESTION DATA ================= */
-const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx', 'Module 4 Worksheet': 'Module 4 Worksheet', 'Multiply Worksheet': 'Multiply Worksheet', 'Divide Worksheet': 'Divide Worksheet' };
+const SRC_FILE = { 'Final Revision 6': 'Final_Revision_6.docx', 'Module 4 Worksheet': 'Module 4 Worksheet', 'Multiply Worksheet': 'Multiply Worksheet', 'Divide Worksheet': 'Divide Worksheet', 'Word Problems Worksheet': 'Word Problems Worksheet' };
 const raw = [];
 (window.Q_FR6 || []).forEach(q => { q.id = 'R' + q.n; q.src = 'Final Revision 6'; q.of = 50; raw.push(q); });
 (window.Q_M4 || []).forEach(q => { q.id = 'M4-' + q.n; q.src = 'Module 4 Worksheet'; q.of = 100; raw.push(q); });
 (window.Q_M4_MUL || []).forEach((q, _, a) => { q.id = 'MUL-' + q.n; q.src = 'Multiply Worksheet'; q.of = a.length; raw.push(q); });
 (window.Q_M4_DIV || []).forEach((q, _, a) => { q.id = 'DIV-' + q.n; q.src = 'Divide Worksheet'; q.of = a.length; raw.push(q); });
+(window.Q_M4_WORD || []).forEach((q, _, a) => { q.id = 'WORD-' + q.n; q.src = 'Word Problems Worksheet'; q.of = a.length; raw.push(q); });
 try { raw.push(...window.buildQuestions(window.DSL)); } catch (e) { console.error('Question generator failed', e); }
 const VALID_T = ['input', 'choice', 'sign', 'order', 'nlpick', 'graph', 'nlmiss'];
 function validate(q) {
